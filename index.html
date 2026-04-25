@@ -1,0 +1,338 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>通譯費計算器</title>
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        body {
+            background-color: #0f172a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+        }
+
+        input[type="datetime-local"] {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            color: #94a3b8;
+        }
+
+        /* 隱藏原生日期圖示以優化行動端 UI */
+        input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+
+    <div class="app-container p-4">
+        <!-- 標題欄 -->
+        <header class="py-6 text-center">
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">通譯費計算器</h1>
+            <p class="text-slate-400 text-sm mt-1">同一案件 · 分次合併 · 逐時判定</p>
+        </header>
+
+        <!-- 主要表單 -->
+        <main class="flex-grow space-y-4">
+            <div id="timeBlocksContainer" class="space-y-4">
+                <!-- 時段區塊 1 -->
+                <div class="glass-card p-5 space-y-4 relative overflow-hidden" id="block-1">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">時段 #1</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-slate-500 ml-1">開始時間</label>
+                            <input type="datetime-local" class="start-time">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-slate-500 ml-1">結束時間</label>
+                            <input type="datetime-local" class="end-time">
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button onclick="toggleBreak(1)" class="text-xs text-slate-400 flex items-center hover:text-indigo-300 transition-colors">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0116 0z"></path></svg>
+                            設定休息扣除時間
+                        </button>
+                        
+                        <div id="break-group-1" class="hidden mt-3 grid grid-cols-2 gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                            <div class="space-y-1">
+                                <label class="text-[9px] text-slate-500 ml-1">休息開始</label>
+                                <input type="datetime-local" class="break-start text-xs">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[9px] text-slate-500 ml-1">休息結束</label>
+                                <input type="datetime-local" class="break-end text-xs">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex flex-col gap-3">
+                <button onclick="addTimeBlock()" class="btn-secondary py-3 rounded-xl flex items-center justify-center text-sm font-semibold transition-all">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    新增服務時段
+                </button>
+                
+                <button onclick="calculate()" class="btn-primary py-4 rounded-2xl text-white font-bold text-lg transition-transform active:scale-95">
+                    計算總費用
+                </button>
+            </div>
+
+            <!-- 結果顯示區域 -->
+            <div id="resultArea" class="hidden animate-in fade-in zoom-in duration-300">
+                <div class="glass-card border-indigo-500/30 p-6 space-y-6">
+                    <div class="flex justify-around text-center">
+                        <div>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold">有效總工時</p>
+                            <p id="displayTotalTime" class="text-xl font-extrabold text-white">-</p>
+                        </div>
+                        <div class="w-px bg-white/10"></div>
+                        <div>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold">案件判定</p>
+                            <p id="displayNightStatus" class="text-xl font-extrabold">-</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 bg-black/30 p-4 rounded-xl">
+                        <p class="text-xs font-bold text-indigo-400 flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                            計費細目
+                        </p>
+                        <div id="calculationDetails" class="space-y-2 font-mono text-[11px] leading-relaxed text-slate-300"></div>
+                    </div>
+
+                    <div class="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                        <span class="text-slate-400 font-bold">應撥付金額</span>
+                        <span id="displayTotalFee" class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">NT$ 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 錯誤提示 -->
+            <div id="errorMessage" class="hidden p-4 bg-rose-500/20 border border-rose-500/50 rounded-xl text-rose-200 text-xs text-center"></div>
+        </main>
+
+        <footer class="py-6 text-center text-slate-600 text-[10px] safe-area-bottom">
+            &copy; 通譯費計費系統 · 核心邏輯 v2.0
+        </footer>
+    </div>
+
+    <script>
+        let blockCount = 1;
+
+        function toggleBreak(id) {
+            const el = document.getElementById(`break-group-${id}`);
+            el.classList.toggle('hidden');
+        }
+
+        function addTimeBlock() {
+            blockCount++;
+            const container = document.getElementById('timeBlocksContainer');
+            const div = document.createElement('div');
+            div.className = 'glass-card p-5 space-y-4 relative animate-in slide-in-from-bottom-4 duration-300';
+            div.id = `block-${blockCount}`;
+            div.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">時段 #${blockCount}</span>
+                    <button onclick="removeBlock(${blockCount})" class="text-slate-500 hover:text-rose-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="datetime-local" class="start-time text-xs">
+                    <input type="datetime-local" class="end-time text-xs">
+                </div>
+                <div class="pt-2">
+                    <button onclick="toggleBreak(${blockCount})" class="text-xs text-slate-400 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0116 0z"></path></svg>
+                        設定休息扣除
+                    </button>
+                    <div id="break-group-${blockCount}" class="hidden mt-3 grid grid-cols-2 gap-3 p-3 rounded-lg bg-black/20">
+                        <input type="datetime-local" class="break-start text-xs">
+                        <input type="datetime-local" class="break-end text-xs">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeBlock(id) { 
+            const el = document.getElementById(`block-${id}`);
+            if (el) el.remove(); 
+        }
+
+        function isNight(date) {
+            const h = date.getHours();
+            return h < 6 || h >= 22;
+        }
+
+        function calculate() {
+            const blocks = document.querySelectorAll('[id^="block-"]');
+            let segments = [];
+            let errorMsg = null;
+
+            blocks.forEach(block => {
+                const s = block.querySelector('.start-time').value;
+                const e = block.querySelector('.end-time').value;
+                if (!s || !e) return;
+
+                const start = new Date(s);
+                const end = new Date(e);
+                if (end <= start) errorMsg = "時間設定有誤 (結束需大於開始)";
+
+                const bs = block.querySelector('.break-start').value;
+                const be = block.querySelector('.break-end').value;
+                const bStart = bs ? new Date(bs) : null;
+                const bEnd = be ? new Date(be) : null;
+
+                segments.push({ start, end, bStart, bEnd });
+            });
+
+            if (errorMsg) { showError(errorMsg); return; }
+            if (segments.length === 0) { showError("請輸入服務時段"); return; }
+
+            // 依時間排序
+            segments.sort((a, b) => a.start - b.start);
+            
+            // 建立所有有效分鐘的陣列
+            let minuteChain = [];
+            segments.forEach(seg => {
+                let curr = new Date(seg.start);
+                while (curr < seg.end) {
+                    const inBreak = seg.bStart && seg.bEnd && curr >= seg.bStart && curr < seg.bEnd;
+                    if (!inBreak) {
+                        minuteChain.push(new Date(curr));
+                    }
+                    curr.setMinutes(curr.getMinutes() + 1);
+                }
+            });
+
+            if (minuteChain.length === 0) { showError("有效時數不足 1 分鐘"); return; }
+            hideError();
+
+            let totalFee = 0;
+            let details = "";
+            let anyNight = false;
+
+            // 1. 基本費 (120 分鐘)
+            const p1 = minuteChain.slice(0, 120);
+            const p1Night = p1.some(d => isNight(d));
+            const p1Fee = p1Night ? 2000 : 1000;
+            totalFee += p1Fee;
+            if (p1Night) anyNight = true;
+
+            details += `<div class="flex justify-between text-slate-400"><span>基礎費 (前120分) - ${p1Night ? '夜間' : '日間'}</span><span class="text-white font-bold">NT$ ${p1Fee}</span></div>`;
+
+            // 2. 加計費 (第 121 分鐘起，逐小時判定)
+            if (minuteChain.length > 120) {
+                const p2 = minuteChain.slice(120);
+                let idx = 0;
+                let hCount = 1;
+                while (idx < p2.length) {
+                    const slice = p2.slice(idx, idx + 60);
+                    const len = slice.length;
+                    const night = slice.some(d => isNight(d));
+                    
+                    let units = 0;
+                    let note = "";
+                    
+                    // 30 分鐘進位規則
+                    if (len < 30) { 
+                        units = 0.5; 
+                        note = "(<30m 進位 0.5h)"; 
+                    } else { 
+                        units = 1.0; 
+                        if (len < 60) note = "(≥30m 進位 1h)"; 
+                    }
+
+                    const rate = night ? 1000 : 500;
+                    const sub = units * rate;
+                    totalFee += sub;
+                    if (night) anyNight = true;
+
+                    details += `<div class="flex justify-between text-slate-400"><span>第 ${hCount+2} 小時計費段 (${night?'夜':'日'}) ${note}</span><span class="text-white font-bold">NT$ ${sub}</span></div>`;
+                    idx += 60;
+                    hCount++;
+                }
+            }
+
+            // 更新 UI 介面
+            const totalHours = Math.floor(minuteChain.length / 60);
+            const totalMins = minuteChain.length % 60;
+            document.getElementById('displayTotalTime').innerText = `${totalHours}h ${totalMins}m`;
+            document.getElementById('displayNightStatus').innerText = anyNight ? "含夜間" : "全日間";
+            document.getElementById('displayNightStatus').className = anyNight ? "text-xl font-extrabold text-orange-400" : "text-xl font-extrabold text-emerald-400";
+            document.getElementById('calculationDetails').innerHTML = details;
+            document.getElementById('displayTotalFee').innerText = `NT$ ${totalFee.toLocaleString()}`;
+            
+            // 顯示結果並滾動
+            document.getElementById('resultArea').classList.remove('hidden');
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function showError(m) { 
+            const e = document.getElementById('errorMessage');
+            e.innerText = `⚠️ ${m}`; 
+            e.classList.remove('hidden'); 
+            document.getElementById('resultArea').classList.add('hidden');
+        }
+        
+        function hideError() { 
+            document.getElementById('errorMessage').classList.add('hidden'); 
+        }
+    </script>
+</body>
+</html>
+
+```
+
